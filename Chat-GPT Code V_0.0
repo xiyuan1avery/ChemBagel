@@ -1,0 +1,123 @@
+##2023.4.21##JUAN_ZIBO##
+######THIS IS THE FORWARD KINEMATICS CODE######
+import numpy as np
+
+# Define the link lengths of the robot arm
+link_lengths = [1, 1, 1, 1, 1, 1]
+
+# Define the DH parameters of the robot arm
+d = [0, 0, 0, 0, 0, 0]
+a = [0, link_lengths[1], link_lengths[2], link_lengths[3], 0, 0]
+alpha = [np.pi/2, 0, 0, 0, np.pi/2, -np.pi/2]
+
+# Compute the forward kinematics transformation matrix
+def forward_kinematics(theta):
+    T = np.identity(4)
+    for i in range(6):
+        Ti = np.array([
+            [np.cos(theta[i]), -np.sin(theta[i])*np.cos(alpha[i]), np.sin(theta[i])*np.sin(alpha[i]), a[i]*np.cos(theta[i])],
+            [np.sin(theta[i]), np.cos(theta[i])*np.cos(alpha[i]), -np.cos(theta[i])*np.sin(alpha[i]), a[i]*np.sin(theta[i])],
+            [0, np.sin(alpha[i]), np.cos(alpha[i]), d[i]],
+            [0, 0, 0, 1]
+        ])
+        T = np.dot(T, Ti)
+    return T
+
+# Define the joint angles of the robot arm (These are the input angles of the servo motor)
+theta1 = np.pi/4
+theta2 = np.pi/4
+theta3 = np.pi/4
+theta4 = np.pi/4
+theta5 = np.pi/4
+theta6 = np.pi/4
+
+# Compute the end-effector position using forward kinematics
+theta = [theta1, theta2, theta3, theta4, theta5, theta6]
+T = forward_kinematics(theta)
+pos = T[:3, 3]
+
+# Print the end-effector position
+print("End-effector position:", pos)
+
+######################################################################
+######INVERSE KINEMATICS FUNCTION######
+import numpy as np
+
+# Define the link lengths of the robot arm
+link_lengths = [1, 1, 1, 1, 1, 1]
+
+# Define the DH parameters of the robot arm
+d = [0, 0, 0, 0, 0, 0]
+a = [0, link_lengths[1], link_lengths[2], link_lengths[3], 0, 0]
+alpha = [np.pi/2, 0, 0, 0, np.pi/2, -np.pi/2]
+
+# Compute the forward kinematics transformation matrix
+def forward_kinematics(theta):
+    T = np.identity(4)
+    for i in range(6):
+        Ti = np.array([
+            [np.cos(theta[i]), -np.sin(theta[i])*np.cos(alpha[i]), np.sin(theta[i])*np.sin(alpha[i]), a[i]*np.cos(theta[i])],
+            [np.sin(theta[i]), np.cos(theta[i])*np.cos(alpha[i]), -np.cos(theta[i])*np.sin(alpha[i]), a[i]*np.sin(theta[i])],
+            [0, np.sin(alpha[i]), np.cos(alpha[i]), d[i]],
+            [0, 0, 0, 1]
+        ])
+        T = np.dot(T, Ti)
+    return T
+
+# Compute the inverse kinematics to reach a desired end-effector position
+def inverse_kinematics(pos):
+    # Initialize joint angles
+    theta = [0, 0, 0, 0, 0, 0]
+    # Define the desired end-effector position
+    xd, yd, zd = pos
+    # Define the target position and orientation using homogeneous transformation
+    Td = np.array([
+        [1, 0, 0, xd],
+        [0, 1, 0, yd],
+        [0, 0, 1, zd],
+        [0, 0, 0, 1]
+    ])
+    # Define the initial position and orientation using homogeneous transformation
+    T0 = np.identity(4)
+    # Set maximum number of iterations and error tolerance
+    max_iter = 100
+    error_tol = 1e-5
+    # Perform iterative inverse kinematics
+    for i in range(max_iter):
+        # Compute the current end-effector position and orientation using forward kinematics
+        T = forward_kinematics(theta)
+        x, y, z = T[:3, 3]
+        # Compute the current position error
+        error = np.linalg.norm(pos - np.array([x, y, z]))
+        if error < error_tol:
+            # If error is below tolerance, stop iteration and return the joint angles
+            return theta
+        # Compute the Jacobian matrix
+        J = np.zeros((6, 6))
+        for j in range(6):
+            theta_j = theta.copy()
+            theta_j[j] += 1e-6
+            xj, yj, zj = forward_kinematics(theta_j)[:3, 3]
+            dxj = xj - x
+            dyj = yj - y
+            dzj = zj - z
+            J[:, j] = np.array([dxj, dyj, dzj, 0, 0, 0])
+        # Compute the pseudoinverse of the Jacobian matrix
+        J_pinv = np.linalg.pinv(J)
+        # Compute the joint angle correction
+        # Compute the joint angle correction
+        dtheta = np.dot(J_pinv, (pos - np.array([x, y, z, 0, 0, 0])))
+        # Update the joint angles 
+        theta += dtheta
+
+#Explanations by Chat-GPT#
+#In this code, the ‘J_pinv’ matrix is the pseudoinverse of the Jacobian matrix ‘J’. 
+#The joint angle correction ‘dtheta’ is computed as the product of the pseudoinverse of the Jacobian matrix 
+#and the position error between the desired end-effector position and the current end-effector position. 
+#The joint angles ‘theta’ are updated by adding the joint angle correction ‘dtheta’ to the current joint angles. 
+#The updated joint angles are used in the next iteration of the loop to compute the new end-effector position and orientation using forward kinematics, 
+#and the process repeats until convergence is achieved or the maximum number of iterations is reached.
+
+
+#NOTE#
+#The initial parts of the two pieces of codes that define all the parameters for the forward & inverse functions may be different, should make them the same.
