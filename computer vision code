@@ -1,0 +1,72 @@
+import cv2
+import numpy as np
+
+# Constants for color thresholding
+RED_LOWER = np.array([0, 100, 100])     # Lower threshold for red color (in HSV)
+RED_UPPER = np.array([10, 255, 255])    # Upper threshold for red color (in HSV)
+GREEN_LOWER = np.array([40, 100, 100])  # Lower threshold for green color (in HSV)
+GREEN_UPPER = np.array([80, 255, 255])  # Upper threshold for green color (in HSV)
+BLUE_LOWER = np.array([100, 100, 100])  # Lower threshold for blue color (in HSV)
+BLUE_UPPER = np.array([130, 255, 255])  # Upper threshold for blue color (in HSV)
+
+
+# Function to process frames and detect tubes
+def detect_tubes(frame):
+    # Convert frame to HSV color space
+    hsv_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+
+    # Apply color thresholding
+    mask = cv2.inRange(hsv_frame, LOWER_COLOR, UPPER_COLOR)
+
+    # Apply morphological operations for noise reduction
+    kernel = np.ones((5, 5), np.uint8)
+    mask = cv2.erode(mask, kernel, iterations=1)
+    mask = cv2.dilate(mask, kernel, iterations=1)
+
+    # Find contours of color regions
+    contours, _ = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    # Process detected contours
+    tubes = []
+    for contour in contours:
+        # Calculate bounding box for each contour
+        x, y, w, h = cv2.boundingRect(contour)
+
+        # Store tube position
+        tubes.append((x, y, w, h))
+
+        # Draw bounding box on frame (optional)
+        cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+
+    return tubes, frame
+
+# Main program
+def main():
+    # Connect to the camera or webcam
+    capture = cv2.VideoCapture(0)  # Use 0 for default camera or provide the camera index
+
+    while True:
+        # Capture frame-by-frame
+        ret, frame = capture.read()
+
+        # Check if the frame was successfully captured
+        if not ret:
+            break
+
+        # Detect tubes and get frame with bounding boxes
+        tubes, frame_with_boxes = detect_tubes(frame)
+
+        # Display the frame with bounding boxes
+        cv2.imshow("Tube Detection", frame_with_boxes)
+
+        # Check for key press to exit
+        if cv2.waitKey(1) == 27:  # Press 'Esc' key to exit
+            break
+
+    # Release the capture and close all windows
+    capture.release()
+    cv2.destroyAllWindows()
+
+# Run the main program
+if __name__ == "__main__":
+    main()
